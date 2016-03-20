@@ -28,7 +28,7 @@ def Execute():
 def invert(bit):
     if bit in (0, 1):
         return (not bit)
-    return "Laser Switch (Get Selected Channel) - Invalid input ... check connections to and from the Laser Switch."
+    raise TypeError("Laser Switch (Get Selected Channel) - Invalid input ... check connections to and from the Laser Switch.")
 		    
 
 # Return the channel as shown on the Laser Switch front panel's 8-segment display
