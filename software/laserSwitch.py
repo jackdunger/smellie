@@ -3,9 +3,7 @@
 # Additional changes by Krish Majumdar (24/01/2013, 05/03/2013)
 # This requires the LabJackPython Software that has been adapted to work on a Windows 7 64-bit machine: https://github.com/labjack/LabJackPython
 # Please check the u12SMELLIE.py script for more details
-import sys
 import time
-sys.path.append("../LabJackPython/src")
 from u12 import U12
 d = U12()
 
