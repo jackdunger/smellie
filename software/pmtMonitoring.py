@@ -64,71 +64,71 @@ def DoneCallback_py(taskHandle, status, callbackData):
 	print "Status",status.value
 	return 0 # The function should return an integer
     
+if __name__ == "__main__":
+        # MAIN FUNCTION        
+        DAQmxResetDevice('dev1')
 
-## MAIN FUNCTION        
-DAQmxResetDevice('dev1')
+        AItaskHandle = TaskHandle()		#initialise the AItaskHandle object
+        AOtaskHandle = TaskHandle()		#initialise the AOtaskHandle object
 
-AItaskHandle = TaskHandle()		#initialise the AItaskHandle object
-AOtaskHandle = TaskHandle()		#initialise the AOtaskHandle object
+        DAQmxCreateTask("",byref(AItaskHandle))	#create analogue input task
+        DAQmxCreateAIVoltageChan(AItaskHandle,"Dev1/ai0:1","",DAQmx_Val_Cfg_Default,-10.0,10.0,DAQmx_Val_Volts,None) #read analogue signal from ai0 and ai1
+        #DAQmxCreateAIVoltageChan(AItaskHandle,"Dev1/ai1","",DAQmx_Val_Cfg_Default,-10.0,10.0,DAQmx_Val_Volts,None)
 
-DAQmxCreateTask("",byref(AItaskHandle))	#create analogue input task
-DAQmxCreateAIVoltageChan(AItaskHandle,"Dev1/ai0:1","",DAQmx_Val_Cfg_Default,-10.0,10.0,DAQmx_Val_Volts,None) #read analogue signal from ai0 and ai1
-#DAQmxCreateAIVoltageChan(AItaskHandle,"Dev1/ai1","",DAQmx_Val_Cfg_Default,-10.0,10.0,DAQmx_Val_Volts,None)
+        #DAQmxCfgSampClkTiming Function 
+        # if DAQmx_Val_ContSamps is set as the 5th argument then the 6th argument is the buffer size 
+        buffer_size = uInt64(1000000)
+        samplingRate = float64(100000.0) #this is the sampling rate in samples per second per channel 
+        DAQmxCfgSampClkTiming(AItaskHandle,"",samplingRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,buffer_size)
 
-#DAQmxCfgSampClkTiming Function 
-# if DAQmx_Val_ContSamps is set as the 5th argument then the 6th argument is the buffer size 
-buffer_size = uInt64(1000000)
-samplingRate = float64(100000.0) #this is the sampling rate in samples per second per channel 
-DAQmxCfgSampClkTiming(AItaskHandle,"",samplingRate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,buffer_size)
+        DAQmxCreateTask("",byref(AOtaskHandle))
+        frequency = 10000.0
+        low_time = 1/(2.0*frequency)
+        high_time = 1/(2.0*frequency)
+        DAQmxCreateCOPulseChanTime(AOtaskHandle,"Dev1/ctr0","",DAQmx_Val_Seconds,DAQmx_Val_Low,0.0,low_time,high_time)
+        DAQmxCfgImplicitTiming(AOtaskHandle,DAQmx_Val_ContSamps,buffer_size)    
 
-DAQmxCreateTask("",byref(AOtaskHandle))
-frequency = 10000.0
-low_time = 1/(2.0*frequency)
-high_time = 1/(2.0*frequency)
-DAQmxCreateCOPulseChanTime(AOtaskHandle,"Dev1/ctr0","",DAQmx_Val_Seconds,DAQmx_Val_Low,0.0,low_time,high_time)
-DAQmxCfgImplicitTiming(AOtaskHandle,DAQmx_Val_ContSamps,buffer_size)    
+        data = MyList()
+        id_a = create_callbackdata_id(data)
+        EveryNCallback = DAQmxEveryNSamplesEventCallbackPtr(EveryNCallback_py)
 
-data = MyList()
-id_a = create_callbackdata_id(data)
-EveryNCallback = DAQmxEveryNSamplesEventCallbackPtr(EveryNCallback_py)
+        DAQmxRegisterEveryNSamplesEvent(AItaskHandle,DAQmx_Val_Acquired_Into_Buffer,100,0,EveryNCallback,id_a)
+        DoneCallback = DAQmxDoneEventCallbackPtr(DoneCallback_py)
+        DAQmxRegisterDoneEvent(AItaskHandle,0,DoneCallback,None)
 
-DAQmxRegisterEveryNSamplesEvent(AItaskHandle,DAQmx_Val_Acquired_Into_Buffer,100,0,EveryNCallback,id_a)
-DoneCallback = DAQmxDoneEventCallbackPtr(DoneCallback_py)
-DAQmxRegisterDoneEvent(AItaskHandle,0,DoneCallback,None)
+        os.system("del data.txt")
+        os.system("del datach1new.txt")
+        os.system("del datach2new.txt")
 
-os.system("del data.txt")
-os.system("del datach1new.txt")
-os.system("del datach2new.txt")
+        total_data = []
+        #total_data = numpy.zeros((1,), dtype=numpy.float64)
+        iDevIdx,iModuleType,iSlotID = sepia.initialise()
+        for i in range (0,12):
+                intensity = int(100 - i*3)
+                sepia.set_laser_intensity(intensity,iDevIdx)
 
-total_data = []
-#total_data = numpy.zeros((1,), dtype=numpy.float64)
-iDevIdx,iModuleType,iSlotID = sepia.initialise()
-for i in range (0,12):
-	intensity = int(100 - i*3)
-	sepia.set_laser_intensity(intensity,iDevIdx)
+                DAQmxStartTask(AItaskHandle)
+                DAQmxStartTask(AOtaskHandle)
+                time.sleep(4.0)
+	        #raw_input('Acquiring samples continuously. Press Enter to interrupt\n')
+                DAQmxStopTask(AItaskHandle)
+                DAQmxStopTask(AOtaskHandle)
 
-	DAQmxStartTask(AItaskHandle)
-	DAQmxStartTask(AOtaskHandle)
-	time.sleep(4.0)
-	#raw_input('Acquiring samples continuously. Press Enter to interrupt\n')
-	DAQmxStopTask(AItaskHandle)
-	DAQmxStopTask(AOtaskHandle)
+                temp_data = get_callbackdata_from_id(id_a)
+	        #total_data = total_data.append(temp_data)
+                offset = 1
+                peak_length = 2
+                threshold = 0.3
+                time.sleep(3.0)
+                
 
-	temp_data = get_callbackdata_from_id(id_a)
-	#total_data = total_data.append(temp_data)
-	offset = 1
-	peak_length = 2
-	threshold = 0.3
-	time.sleep(3.0)
+	        #DAQmxClearTask(AItaskHandle)
+            	#DAQmxClearTask(AOtaskHandle)
+         	#time.sleep(12.0)
 
+        sepia.close(iDevIdx)
+        prune_data(temp_data,5000,threshold,offset,peak_length)
+        reformat(temp_data)
 
-	#DAQmxClearTask(AItaskHandle)
-	#DAQmxClearTask(AOtaskHandle)
-	#time.sleep(12.0)
-
-sepia.close(iDevIdx)
-prune_data(temp_data,5000,threshold,offset,peak_length)
-reformat(temp_data)
-
-DAQmxClearTask(AItaskHandle)
-DAQmxClearTask(AOtaskHandle)
+        DAQmxClearTask(AItaskHandle)
+        DAQmxClearTask(AOtaskHandle)
